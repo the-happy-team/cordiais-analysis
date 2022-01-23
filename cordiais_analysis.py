@@ -15,6 +15,9 @@ IMAGES_DIR_RAW = join(IMAGES_DIR, '00_raw')
 IMAGES_DIR_WEB = join(IMAGES_DIR, '01_web')
 IMAGES_DIR_THUMB = join(IMAGES_DIR, '02_thumb')
 
+MAX_DIM_WEB = 1920
+MAX_DIM_THUMB = 640
+
 SHEET_URL = 'https://docs.google.com/spreadsheets/d/%s/gviz/tq?tqx=out:csv&sheet=%s' % (
     os.environ.get('SHEET_ID'),
     os.environ.get('SHEET_NAME')
@@ -42,30 +45,6 @@ def get_obras():
     return obras
 
 
-def get_images(obras):
-    for o in obras:
-        img_slug = to_slug(o['ARTISTA'], o['TÍTULO DA OBRA'])
-        img_file_raw = join(IMAGES_DIR_RAW, '%s.jpg' % img_slug)
-        img_file_web = join(IMAGES_DIR_WEB, '%s.jpg' % img_slug)
-        img_file_thumb = join(IMAGES_DIR_THUMB, '%s.jpg' % img_slug)
-
-        if not isfile(img_file_raw):
-            link_web = o['LINK EXTERNO']
-            link_internal = o['LINK INTERNO']
-
-            if link_internal != '' and 'foo' not in link_internal:
-                print('TODO: download from internal url')
-            elif 'artsandculture.google.com' in link_web:
-                print('get %s from %s' % (img_slug[0:16], link_web))
-                get_image_from_gaac(link_web, img_file_raw)
-        
-        if not isfile(img_file_web):
-            print('TODO: resize web')
-
-        if not isfile(img_file_thumb):
-            print('TODO: resize thumb')
-
-
 def get_image_from_gaac(link_web, img_file):
     p = Popen([
         '%s' % DEZOOM['CMD'],
@@ -89,6 +68,47 @@ def get_all_images_from_gaac(obras):
             if 'artsandculture.google.com' in web_link:
                 print('get %s from %s' % (img_slug[0:16], web_link))
                 get_image_from_gaac(web_link, img_file)
+
+
+def resize_img(img_file_in, max_dim):
+    img = Image.open(img_file_in).convert("RGB")
+    width, height = img.size
+
+    if width > max_dim:
+        width, height = max_dim, max_dim * height / width
+    if height > max_dim:
+        width, height = max_dim * width / height, max_dim
+
+    img.thumbnail((width, height), Image.ANTIALIAS)
+    return img
+
+
+def get_images(obras):
+    for o in obras:
+        img_slug = to_slug(o['ARTISTA'], o['TÍTULO DA OBRA'])
+        img_file_raw = join(IMAGES_DIR_RAW, '%s.jpg' % img_slug)
+        img_file_web = join(IMAGES_DIR_WEB, '%s.jpg' % img_slug)
+        img_file_thumb = join(IMAGES_DIR_THUMB, '%s.jpg' % img_slug)
+
+        if not isfile(img_file_raw):
+            link_web = o['LINK EXTERNO']
+            link_internal = o['LINK INTERNO']
+
+            if link_internal != '' and 'foo' not in link_internal:
+                print('TODO: download from internal url')
+            elif 'artsandculture.google.com' in link_web:
+                print('get %s from %s' % (img_slug[0:16], link_web))
+                get_image_from_gaac(link_web, img_file_raw)
+
+        if isfile(img_file_raw) and not isfile(img_file_web):
+            print('resize %s for web' % img_slug)
+            img_sized = resize_img(img_file_raw, MAX_DIM_WEB)
+            img_sized.save(img_file_web, quality=90, optimize=True, progressive=True)
+
+        if isfile(img_file_raw) and not isfile(img_file_thumb):
+            print('resize %s for thumbnail' % img_slug)
+            img_sized = resize_img(img_file_raw, MAX_DIM_THUMB)
+            img_sized.save(img_file_thumb, quality=90, optimize=True, progressive=True)
 
 
 def get_faces(img_file):
