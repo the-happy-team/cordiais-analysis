@@ -135,8 +135,8 @@ def to_web_json(csv_json):
     return web_json
 
 
-def get_faces(img_file):
-    faces = []
+def get_face_attributes(img_file):
+    face = {}
 
     files = {
         'image_file': open(img_file, 'rb')
@@ -149,14 +149,15 @@ def get_faces(img_file):
     }
 
     res = requests.post(FACE_API_URL, files=files, data=data)
+    res_o = json.loads(res.text)
 
     if res.ok:
-        faces = json.loads(res.text)['faces']
-        print('get_faces success')
+        if res_o['face_num'] > 0:
+            face = res_o['faces'][0]
     else:
-        print('get_faces ERROR: %s' % json.dumps(res.text, sort_keys=True, indent=2))
+        print('get_face_attributes ERROR: %s' % json.dumps(res_o, sort_keys=True, indent=2))
 
-    return faces
+    return face
 
 
 def print_results(faces):
@@ -173,7 +174,3 @@ def print_results(faces):
             print('emotions: %s' % json.dumps(ems, sort_keys=True, indent=2))
             print('top: %s' % max(ems, key=ems.get))
             print('top not neutral: %s' % max(ems_not_neutral, key=ems_not_neutral.get))
-
-
-# print_results(get_faces(join('imgs', 'RetratodeMulata_MASC0040.jpg')))
-# print(get_obras())
