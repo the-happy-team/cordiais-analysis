@@ -117,6 +117,24 @@ def get_images(obras):
             img_sized.save(img_file_thumb, quality=90, optimize=True, progressive=True)
 
 
+def to_web_json(csv_json):
+    web_json = {}
+    web_json['artist'] = csv_json['ARTISTA']
+    web_json['title'] = csv_json['TÍTULO DA OBRA']
+    web_json['year'] = csv_json['ANO']
+    web_json['medium'] = csv_json['TÉCNICA']
+    web_json['collection'] = csv_json['ACERVO']
+    web_json['dimension'] = {
+        'width': csv_json['LARGURA cm'],
+        'height': csv_json['ALTURA cm'],
+        'depth': csv_json['PROFUNDIDADE cm'],
+        'unit': 'cm'
+        }
+    web_json['slug'] = to_slug(web_json['artist'], web_json['title'])
+
+    return web_json
+
+
 def get_faces(img_file):
     faces = []
 
