@@ -26,8 +26,8 @@ SHEET_URL = 'https://docs.google.com/spreadsheets/d/%s/gviz/tq?tqx=out:csv&sheet
 # https://github.com/lovasoa/dezoomify-rs
 DEZOOM = {
     'CMD': join('.', 'bin', 'dezoomify-rs'),
-    'COMPRESSION': 90,
-    'MAX_WIDTH': 1024 * 10
+    'COMPRESSION': 16,
+    'MAX_DIM': 1024 * 8
 }
 
 FACE_API_URL = 'https://api-us.faceplusplus.com/facepp/v3/detect'
@@ -49,7 +49,8 @@ def get_image_from_gaac(link_web, img_file):
     p = Popen([
         '%s' % DEZOOM['CMD'],
         '--compression=%s' % DEZOOM['COMPRESSION'],
-        '--max-width=%s' % DEZOOM['MAX_WIDTH'],
+        '--max-height=%s' % DEZOOM['MAX_DIM'],
+        '--max-width=%s' % DEZOOM['MAX_DIM'],
         '--',
         '%s' % link_web,
         '%s' % img_file])
