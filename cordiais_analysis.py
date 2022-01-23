@@ -3,6 +3,7 @@ from io import StringIO
 import json
 import os
 from os.path import isfile, join
+import pathlib
 from subprocess import Popen
 
 from PIL import Image
@@ -15,8 +16,12 @@ IMAGES_DIR_RAW = join(IMAGES_DIR, '00_raw')
 IMAGES_DIR_WEB = join(IMAGES_DIR, '01_web')
 IMAGES_DIR_THUMB = join(IMAGES_DIR, '02_thumb')
 
+pathlib.Path(IMAGES_DIR_RAW).mkdir(parents=True, exist_ok=True)
+pathlib.Path(IMAGES_DIR_WEB).mkdir(parents=True, exist_ok=True)
+pathlib.Path(IMAGES_DIR_THUMB).mkdir(parents=True, exist_ok=True)
+
 MAX_DIM_WEB = 1920
-MAX_DIM_THUMB = 640
+MAX_DIM_THUMB = 320
 
 SHEET_URL = 'https://docs.google.com/spreadsheets/d/%s/gviz/tq?tqx=out:csv&sheet=%s' % (
     os.environ.get('SHEET_ID'),
