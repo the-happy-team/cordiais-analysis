@@ -68,7 +68,7 @@ def get_image_from_gaac(link_web, img_file):
 def get_all_images_from_gaac(obras):
     for o in obras:
         img_slug = to_slug(o['ARTISTA'], o['TÍTULO DA OBRA'])
-        img_file = join(IMAGES_RAW_DIR, '%s.jpg' % img_slug)
+        img_file = join(IMAGES_DIR_RAW, '%s.jpg' % img_slug)
         if not isfile(img_file):
             web_link = o['LINK EXTERNO']
             if 'artsandculture.google.com' in web_link:
