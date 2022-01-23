@@ -53,7 +53,7 @@ def get_images(obras):
             link_web = o['LINK EXTERNO']
             link_internal = o['LINK INTERNO']
 
-            if link_internal is not '' and 'foo' not in link_internal:
+            if link_internal != '' and 'foo' not in link_internal:
                 print('TODO: download from internal url')
             elif 'artsandculture.google.com' in link_web:
                 print('get %s from %s' % (img_slug[0:16], link_web))
