@@ -180,16 +180,6 @@ def analyze_images(obras, web_json=None):
                 obra_web_json['face_rectangle'] = face['face_rectangle']
                 obra_web_json['emotions'] = face['attributes']['emotion']
 
-                o['FELICIDADE %'] = obra_web_json['emotions']['happiness']
-                o['SURPRESA %'] = obra_web_json['emotions']['surprise']
-                o['TRISTEZA %'] = obra_web_json['emotions']['sadness']
-                o['DESGOSTO %'] = obra_web_json['emotions']['disgust']
-                o['RAIVA %'] = obra_web_json['emotions']['anger']
-                o['MEDO %'] = obra_web_json['emotions']['fear']
-                o['NEUTRO %'] = obra_web_json['emotions']['neutral']
-                o['GÊNERO'] = obra_web_json['gender']
-                o['IDADE'] = obra_web_json['age']
-
             web_json[obra_slug] = obra_web_json
 
     return web_json
