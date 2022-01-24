@@ -13,12 +13,12 @@ from cordiais_utils import to_slug
 
 IMAGES_DIR = join('.', 'imgs')
 IMAGES_DIR_RAW = join(IMAGES_DIR, '00_raw')
-IMAGES_DIR_WEB = join(IMAGES_DIR, '01_web')
-IMAGES_DIR_THUMB = join(IMAGES_DIR, '02_thumb')
+IMAGES_DIR_THUMB = join(IMAGES_DIR, '01_thumb')
 
-pathlib.Path(IMAGES_DIR_RAW).mkdir(parents=True, exist_ok=True)
-pathlib.Path(IMAGES_DIR_WEB).mkdir(parents=True, exist_ok=True)
-pathlib.Path(IMAGES_DIR_THUMB).mkdir(parents=True, exist_ok=True)
+WEB_DIR = join('..', 'cordiais-web', 'public')
+WEB_DIR_IMAGES = join(WEB_DIR, 'imgs', 'obras')
+WEB_DIR_DATA = join(WEB_DIR, 'data')
+WEB_DATA_FILE = join(WEB_DIR_DATA, 'obras.json')
 
 MAX_DIM_WEB = 1920
 MAX_DIM_THUMB = 320
@@ -90,11 +90,15 @@ def resize_img(img_file_in, max_dim):
 
 
 def get_images(obras):
+    pathlib.Path(IMAGES_DIR_RAW).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(IMAGES_DIR_THUMB).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(WEB_DIR_IMAGES).mkdir(parents=True, exist_ok=True)
+
     for o in obras:
         img_slug = to_slug(o['ARTISTA'], o['TÍTULO DA OBRA'])
         img_file_raw = join(IMAGES_DIR_RAW, '%s.jpg' % img_slug)
-        img_file_web = join(IMAGES_DIR_WEB, '%s.jpg' % img_slug)
         img_file_thumb = join(IMAGES_DIR_THUMB, '%s.jpg' % img_slug)
+        img_file_web = join(WEB_DIR_IMAGES, '%s.jpg' % img_slug)
 
         if not isfile(img_file_raw):
             link_web = o['LINK EXTERNO']
@@ -166,16 +170,14 @@ def get_face_attributes(img_file):
     return face
 
 
-def analyze_images(obras, web_json=None):
-    # TODO: read json if it exists
-    web_json = web_json if web_json is not None else {}
-
-    for o in obras:
+def analyze_images(obras_csv, obras_web):
+    for o in obras_csv:
         obra_web_json = to_web_json(o)
         obra_slug = obra_web_json['slug']
 
-        if obra_slug not in web_json:
-            obra_filename = join(IMAGES_DIR_WEB, '%s.jpg' % obra_web_json['slug'])
+        if obra_slug not in obras_web:
+            print('processing: %s' % obra_slug)
+            obra_filename = join(WEB_DIR_IMAGES, '%s.jpg' % obra_web_json['slug'])
             face = get_face_attributes(obra_filename)
 
             if 'face_token' in face:
@@ -185,9 +187,24 @@ def analyze_images(obras, web_json=None):
                 obra_web_json['face_rectangle'] = face['face_rectangle']
                 obra_web_json['emotions'] = face['attributes']['emotion']
 
-            web_json[obra_slug] = obra_web_json
+            obras_web[obra_slug] = obra_web_json
 
-    return web_json
+    return obras_web
+
+
+def update_web_json(obras, json_filename=WEB_DATA_FILE):
+    pathlib.Path(WEB_DIR_DATA).mkdir(parents=True, exist_ok=True)
+
+    obras_web = {}
+
+    if isfile(json_filename):
+        with open(json_filename, 'r') as in_json:
+            obras_web = json.load(in_json)
+
+    obras_web = analyze_images(obras, obras_web)
+
+    with open(json_filename, 'w') as out_json:
+        json.dump(obras_web, out_json, ensure_ascii=False)
 
 
 def print_results(faces):
