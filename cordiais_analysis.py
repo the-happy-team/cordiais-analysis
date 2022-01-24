@@ -138,53 +138,60 @@ def to_web_json(csv_json):
 def get_face_attributes(img_file):
     face = {}
 
-    files = {
-        'image_file': open(img_file, 'rb')
-    }
+    if isfile(img_file):
+        files = {
+            'image_file': open(img_file, 'rb')
+        }
 
-    data = {
-        'api_key': os.environ.get('FACEPP_KEY'),
-        'api_secret': os.environ.get('FACEPP_SECRET'),
-        'return_attributes': 'emotion,gender,age,ethnicity'
-    }
+        data = {
+            'api_key': os.environ.get('FACEPP_KEY'),
+            'api_secret': os.environ.get('FACEPP_SECRET'),
+            'return_attributes': 'emotion,gender,age,ethnicity'
+        }
 
-    res = requests.post(FACE_API_URL, files=files, data=data)
-    res_o = json.loads(res.text)
+        res = requests.post(FACE_API_URL, files=files, data=data)
+        res_o = json.loads(res.text)
 
-    if res.ok:
-        if res_o['face_num'] > 0:
-            face = res_o['faces'][0]
-    else:
-        print('get_face_attributes ERROR: %s' % json.dumps(res_o, sort_keys=True, indent=2))
+        if res.ok:
+            if res_o['face_num'] > 0:
+                face = res_o['faces'][0]
+        else:
+            print('get_face_attributes ERROR: %s' % json.dumps(res_o, sort_keys=True, indent=2))
 
     return face
 
 
-def analyze_images(obras):
-    web_json = []
-    for o in obras:
+def analyze_images(obras, web_json=None):
+    # TODO: read json if it exists
+    web_json = web_json if web_json is not None else {}
+
+    for o in obras[0:4]:
         obra_web_json = to_web_json(o)
-        obra_filename = join(IMAGES_DIR_WEB, '%s.jpg' % obra_web_json['slug'])
-        face = get_face_attributes(obra_filename)
+        obra_slug = obra_web_json['slug']
 
-        if len(list(face.keys())) > 0:
-            obra_web_json['gender'] = face['attributes']['gender']['value']
-            obra_web_json['age'] = face['attributes']['age']['value']
-            obra_web_json['ethnicity'] = face['attributes']['ethnicity']['value']
-            obra_web_json['face_rectangle'] = face['face_rectangle']
-            obra_web_json['emotions'] = face['attributes']['emotion']
+        if obra_slug not in web_json:
+            obra_filename = join(IMAGES_DIR_WEB, '%s.jpg' % obra_web_json['slug'])
+            face = get_face_attributes(obra_filename)
 
-            o['FELICIDADE %'] = obra_web_json['emotions']['happiness']
-            o['SURPRESA %'] = obra_web_json['emotions']['surprise']
-            o['TRISTEZA %'] = obra_web_json['emotions']['sadness']
-            o['DESGOSTO %'] = obra_web_json['emotions']['disgust']
-            o['RAIVA %'] = obra_web_json['emotions']['anger']
-            o['MEDO %'] = obra_web_json['emotions']['fear']
-            o['NEUTRO %'] = obra_web_json['emotions']['neutral']
-            o['GÊNERO'] = obra_web_json['gender']
-            o['IDADE'] = obra_web_json['age']
+            if 'face_token' in face:
+                obra_web_json['gender'] = face['attributes']['gender']['value']
+                obra_web_json['age'] = face['attributes']['age']['value']
+                obra_web_json['ethnicity'] = face['attributes']['ethnicity']['value']
+                obra_web_json['face_rectangle'] = face['face_rectangle']
+                obra_web_json['emotions'] = face['attributes']['emotion']
 
-        web_json.append(obra_web_json)
+                o['FELICIDADE %'] = obra_web_json['emotions']['happiness']
+                o['SURPRESA %'] = obra_web_json['emotions']['surprise']
+                o['TRISTEZA %'] = obra_web_json['emotions']['sadness']
+                o['DESGOSTO %'] = obra_web_json['emotions']['disgust']
+                o['RAIVA %'] = obra_web_json['emotions']['anger']
+                o['MEDO %'] = obra_web_json['emotions']['fear']
+                o['NEUTRO %'] = obra_web_json['emotions']['neutral']
+                o['GÊNERO'] = obra_web_json['gender']
+                o['IDADE'] = obra_web_json['age']
+
+            web_json[obra_slug] = obra_web_json
+
     return web_json
 
 
