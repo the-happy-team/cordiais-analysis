@@ -165,7 +165,7 @@ def analyze_images(obras, web_json=None):
     # TODO: read json if it exists
     web_json = web_json if web_json is not None else {}
 
-    for o in obras[0:4]:
+    for o in obras:
         obra_web_json = to_web_json(o)
         obra_slug = obra_web_json['slug']
 
