@@ -101,10 +101,15 @@ def get_images(obras):
             link_internal = o['LINK INTERNO']
 
             if link_internal != '' and 'foo' not in link_internal:
-                print('TODO: download from internal url')
+                print('TODO: download %s from internal url' % img_slug)
             elif 'artsandculture.google.com' in link_web:
                 print('get %s from %s' % (img_slug[0:16], link_web))
                 get_image_from_gaac(link_web, img_file_raw)
+            elif link_web != '':
+                print('download %s from non google url' % img_slug)
+                img_data = requests.get(link_web).content
+                with open(img_file_raw, 'wb') as handler:
+                    handler.write(img_data)
 
         if isfile(img_file_raw) and not isfile(img_file_web):
             print('resize %s for web' % img_slug)
