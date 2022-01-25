@@ -77,7 +77,7 @@ def get_all_images_from_gaac(obras):
 
 
 def resize_img(img_file_in, max_dim):
-    img = Image.open(img_file_in).convert("RGB")
+    img = Image.open(img_file_in).convert('RGB')
     width, height = img.size
 
     if width > max_dim:
@@ -148,6 +148,9 @@ def get_face_attributes(img_file):
     face = {}
 
     if isfile(img_file):
+        img = Image.open(img_file).convert('RGB')
+        image_width, image_height = img.size
+
         files = {
             'image_file': open(img_file, 'rb')
         }
@@ -164,6 +167,12 @@ def get_face_attributes(img_file):
         if res.ok:
             if res_o['face_num'] > 0:
                 face = res_o['faces'][0]
+                face['face_rectangle'] = {
+                    'left': face['face_rectangle']['left'] / image_width,
+                    'top': face['face_rectangle']['top'] / image_height,
+                    'width': face['face_rectangle']['width'] / image_width,
+                    'height': face['face_rectangle']['height'] / image_height
+                }
         else:
             print('get_face_attributes ERROR: %s' % json.dumps(res_o, sort_keys=True, indent=2))
 
