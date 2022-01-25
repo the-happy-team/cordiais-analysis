@@ -134,9 +134,9 @@ def to_web_json(csv_json):
     web_json['medium'] = csv_json['TÉCNICA']
     web_json['collection'] = csv_json['ACERVO']
     web_json['dimension'] = {
-        'width': csv_json['LARGURA cm'],
-        'height': csv_json['ALTURA cm'],
-        'depth': csv_json['PROFUNDIDADE cm'],
+        'width': float(csv_json['LARGURA cm']) if csv_json['LARGURA cm'] != '' else 0,
+        'height': float(csv_json['ALTURA cm']) if csv_json['ALTURA cm'] != '' else 0,
+        'depth': float(csv_json['PROFUNDIDADE cm']) if csv_json['PROFUNDIDADE cm'] != '' else 0,
         'unit': 'cm'
         }
     web_json['slug'] = to_slug(web_json['artist'], web_json['title'])
