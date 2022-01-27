@@ -96,17 +96,14 @@ def get_images(obras):
 
     for o in obras:
         img_slug = to_slug(o['ARTISTA'], o['TÍTULO DA OBRA'])
-        img_file_raw = join(IMAGES_DIR_RAW, '%s.jpg' % img_slug)
-        img_file_thumb = join(IMAGES_DIR_THUMB, '%s.jpg' % img_slug)
-        img_file_web = join(WEB_DIR_IMAGES, '%s.jpg' % img_slug)
+        img_file_raw = join(IMAGES_DIR_RAW, '%s_%s.jpg' % (img_slug, 'raw'))
+        img_file_thumb = join(IMAGES_DIR_THUMB, '%s_%s.jpg' % (img_slug, 'thumb'))
+        img_file_web = join(WEB_DIR_IMAGES, '%s_%s.jpg' % (img_slug, 'web'))
 
         if not isfile(img_file_raw):
             link_web = o['LINK EXTERNO']
-            link_internal = o['LINK INTERNO']
 
-            if link_internal != '' and 'foo' not in link_internal:
-                print('TODO: download %s from internal url' % img_slug)
-            elif 'artsandculture.google.com' in link_web:
+            if 'artsandculture.google.com' in link_web:
                 print('get %s from %s' % (img_slug[0:16], link_web))
                 get_image_from_gaac(link_web, img_file_raw)
             elif link_web != '':
@@ -133,6 +130,9 @@ def to_web_json(csv_json):
     web_json['year'] = csv_json['ANO']
     web_json['medium'] = csv_json['TÉCNICA']
     web_json['collection'] = csv_json['ACERVO']
+    web_json['marcantonio'] = False if csv_json['PROJETO MARCANTONIO VILAÇA SITE'] == 'FALSE' else True
+    web_json['nudes'] = False if csv_json['NUDES'] == 'FALSE' else True
+
     web_json['dimension'] = {
         'width': float(csv_json['LARGURA cm']) if csv_json['LARGURA cm'] != '' else 0,
         'height': float(csv_json['ALTURA cm']) if csv_json['ALTURA cm'] != '' else 0,
@@ -140,6 +140,7 @@ def to_web_json(csv_json):
         'unit': 'cm'
         }
     web_json['slug'] = to_slug(web_json['artist'], web_json['title'])
+    web_json['img'] = '%s_%s.jpg' % (web_json['slug'], 'web')
 
     return web_json
 
@@ -186,7 +187,7 @@ def analyze_images(obras_csv, obras_web):
 
         if obra_slug not in obras_web:
             print('processing: %s' % obra_slug)
-            obra_filename = join(WEB_DIR_IMAGES, '%s.jpg' % obra_web_json['slug'])
+            obra_filename = join(WEB_DIR_IMAGES, obra_web_json['img'])
             face = get_face_attributes(obra_filename)
 
             if 'face_token' in face:
