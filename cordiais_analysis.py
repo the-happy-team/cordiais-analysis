@@ -13,14 +13,16 @@ from cordiais_utils import to_slug
 
 IMAGES_DIR = join('.', 'imgs')
 IMAGES_DIR_RAW = join(IMAGES_DIR, '00_raw')
-IMAGES_DIR_THUMB = join(IMAGES_DIR, '01_thumb')
+IMAGES_DIR_HD = join(IMAGES_DIR, '01_hd')
+IMAGES_DIR_THUMB = join(IMAGES_DIR, '02_thumb')
 
 WEB_DIR = join('..', 'cordiais-web', 'public')
 WEB_DIR_IMAGES = join(WEB_DIR, 'imgs', 'obras')
 WEB_DIR_DATA = join(WEB_DIR, 'data')
 WEB_DATA_FILE = join(WEB_DIR_DATA, 'obras.json')
 
-MAX_DIM_WEB = 1920
+MAX_DIM_HD = 1920
+MAX_DIM_WEB = 800
 MAX_DIM_THUMB = 320
 
 SHEET_URL = 'https://docs.google.com/spreadsheets/d/%s/gviz/tq?tqx=out:csv&sheet=%s' % (
@@ -91,12 +93,14 @@ def resize_img(img_file_in, max_dim):
 
 def get_images(obras):
     pathlib.Path(IMAGES_DIR_RAW).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(IMAGES_DIR_HD).mkdir(parents=True, exist_ok=True)
     pathlib.Path(IMAGES_DIR_THUMB).mkdir(parents=True, exist_ok=True)
     pathlib.Path(WEB_DIR_IMAGES).mkdir(parents=True, exist_ok=True)
 
     for o in obras:
         img_slug = to_slug(o['ARTISTA'], o['TÍTULO DA OBRA'])
         img_file_raw = join(IMAGES_DIR_RAW, '%s_%s.jpg' % (img_slug, 'raw'))
+        img_file_hd = join(IMAGES_DIR_HD, '%s_%s.jpg' % (img_slug, 'hd'))
         img_file_thumb = join(IMAGES_DIR_THUMB, '%s_%s.jpg' % (img_slug, 'thumb'))
         img_file_web = join(WEB_DIR_IMAGES, '%s_%s.jpg' % (img_slug, 'web'))
 
@@ -116,6 +120,11 @@ def get_images(obras):
             print('resize %s for web' % img_slug)
             img_sized = resize_img(img_file_raw, MAX_DIM_WEB)
             img_sized.save(img_file_web, quality=90, optimize=True, progressive=True)
+
+        if isfile(img_file_raw) and not isfile(img_file_hd):
+            print('resize %s for hd' % img_slug)
+            img_sized = resize_img(img_file_raw, MAX_DIM_HD)
+            img_sized.save(img_file_hd, quality=90, optimize=True, progressive=True)
 
         if isfile(img_file_raw) and not isfile(img_file_thumb):
             print('resize %s for thumbnail' % img_slug)
@@ -198,6 +207,9 @@ def analyze_images(obras_csv, obras_web):
                 obra_web_json['emotions'] = face['attributes']['emotion']
 
             obras_web[obra_slug] = obra_web_json
+        else:
+            # TODO: update stuff that isn't the face++ analysis
+            pass
 
     return obras_web
 
