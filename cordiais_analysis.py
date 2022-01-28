@@ -196,7 +196,7 @@ def analyze_images(obras_csv, obras_web):
 
         if obra_slug not in obras_web:
             print('processing: %s' % obra_slug)
-            obra_filename = join(WEB_DIR_IMAGES, obra_web_json['img'])
+            obra_filename = join(IMAGES_DIR_HD, '%s_%s.jpg' % (obra_slug, 'hd'))
             face = get_face_attributes(obra_filename)
 
             if 'face_token' in face:
@@ -208,8 +208,9 @@ def analyze_images(obras_csv, obras_web):
 
             obras_web[obra_slug] = obra_web_json
         else:
-            # TODO: update stuff that isn't the face++ analysis
-            pass
+            print('updating from CSV: %s' % obra_slug)
+            for k, v in obra_web_json.items():
+                obras_web[obra_slug][k] = v
 
     return obras_web
 
