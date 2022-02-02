@@ -67,17 +67,6 @@ def get_image_from_gaac(link_web, img_file):
         print("%s timedout" % img_file)
 
 
-def get_all_images_from_gaac(obras):
-    for o in obras:
-        img_slug = to_slug(o['ARTISTA'], o['TÍTULO DA OBRA'])
-        img_file = join(IMAGES_DIR_RAW, '%s.jpg' % img_slug)
-        if not isfile(img_file):
-            web_link = o['LINK EXTERNO']
-            if 'artsandculture.google.com' in web_link:
-                print('get %s from %s' % (img_slug[0:16], web_link))
-                get_image_from_gaac(web_link, img_file)
-
-
 def resize_img(img_file_in, max_dim):
     img = Image.open(img_file_in).convert('RGB')
     width, height = img.size
