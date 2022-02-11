@@ -2,3 +2,4 @@ __pycache__
 bin
 .DS_Store
 .env
+imgs/
