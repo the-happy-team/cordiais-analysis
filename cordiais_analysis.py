@@ -21,7 +21,7 @@ WEB_DIR_IMAGES = join(WEB_DIR, 'imgs', 'obras')
 WEB_DIR_DATA = join(WEB_DIR, 'data')
 WEB_DATA_FILE = join(WEB_DIR_DATA, 'obras.json')
 
-MAX_DIM_HD = 1920
+MAX_DIM_HD = 2160
 MAX_DIM_WEB = 800
 MAX_DIM_THUMB = 320
 
@@ -69,14 +69,7 @@ def get_image_from_gaac(link_web, img_file):
 
 def resize_img(img_file_in, max_dim):
     img = Image.open(img_file_in).convert('RGB')
-    width, height = img.size
-
-    if width > max_dim:
-        width, height = max_dim, max_dim * height / width
-    if height > max_dim:
-        width, height = max_dim * width / height, max_dim
-
-    img.thumbnail((width, height), Image.ANTIALIAS)
+    img.thumbnail((max_dim, max_dim), Image.ANTIALIAS)
     return img
 
 
@@ -113,7 +106,7 @@ def get_images(obras):
         if isfile(img_file_raw) and not isfile(img_file_hd):
             print('resize %s for hd' % img_slug)
             img_sized = resize_img(img_file_raw, MAX_DIM_HD)
-            img_sized.save(img_file_hd, quality=90, optimize=True, progressive=True)
+            img_sized.save(img_file_hd, quality=80, optimize=True, progressive=True)
 
         if isfile(img_file_raw) and not isfile(img_file_thumb):
             print('resize %s for thumbnail' % img_slug)
