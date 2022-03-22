@@ -122,8 +122,10 @@ def to_web_json(csv_json):
     web_json['medium'] = csv_json['TÉCNICA']
     web_json['collection'] = csv_json['ACERVO']
     web_json['artist_death'] = int(csv_json['DATA MORTE ARTISTA']) if csv_json['DATA MORTE ARTISTA'] != '' else 3000
-    web_json['marcantonio'] = False if csv_json['PROJETO MARCANTONIO VILAÇA SITE'] == 'FALSE' else True
+    web_json['marcantonio'] = False if csv_json['PROJETO MARCANTONIO SITE'] == 'FALSE' else True
     web_json['nudes'] = False if csv_json['NUDES'] == 'FALSE' else True
+    web_json['by_woman'] = False if csv_json['PINTADA POR MULHERES'] == 'FALSE' else True
+    web_json['by_man'] = False if csv_json['PINTADA POR MULHERES'] == 'TRUE' or csv_json['ARTISTA'] == 'Anônimo' else True
 
     web_json['dimension'] = {
         'width': float(csv_json['LARGURA cm']) if csv_json['LARGURA cm'] != '' else 0,
@@ -133,6 +135,17 @@ def to_web_json(csv_json):
         }
     web_json['slug'] = to_slug(web_json['artist'], web_json['title'])
     web_json['img'] = '%s_%s.jpg' % (web_json['slug'], 'web')
+
+    if (web_json['dimension']['width'] == 0 or web_json['dimension']['height'] == 0):
+        obra_filename = join(IMAGES_DIR_HD, '%s_%s.jpg' % (web_json['slug'], 'hd'))
+        img = Image.open(obra_filename).convert('RGB')
+        image_width, image_height = img.size
+        web_json['dimension'] = {
+            'width': image_width,
+            'height': image_height,
+            'depth': 0,
+            'unit': 'px'
+            }
 
     return web_json
 
