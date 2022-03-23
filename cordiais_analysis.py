@@ -15,9 +15,11 @@ IMAGES_DIR = join('.', 'imgs')
 IMAGES_DIR_RAW = join(IMAGES_DIR, '00_raw')
 IMAGES_DIR_HD = join(IMAGES_DIR, '01_hd')
 IMAGES_DIR_THUMB = join(IMAGES_DIR, '02_thumb')
+IMAGES_DIR_FACES = join(IMAGES_DIR, '00_raw_faces')
 
 WEB_DIR = join('..', 'cordiais-web', 'public')
 WEB_DIR_IMAGES = join(WEB_DIR, 'imgs', 'obras')
+WEB_DIR_FACES = join(WEB_DIR, 'imgs', 'faces')
 WEB_DIR_DATA = join(WEB_DIR, 'data')
 WEB_DATA_FILE = join(WEB_DIR_DATA, 'obras.json')
 
@@ -72,6 +74,11 @@ def resize_img(img_file_in, max_dim):
     img.thumbnail((max_dim, max_dim), Image.ANTIALIAS)
     return img
 
+# TODO: refactor resize_img to be like this
+def _resize_img(img, max_dim):
+    img.thumbnail((max_dim, max_dim), Image.ANTIALIAS)
+    return img
+
 
 def get_images(obras):
     pathlib.Path(IMAGES_DIR_RAW).mkdir(parents=True, exist_ok=True)
@@ -119,6 +126,7 @@ def to_web_json(csv_json):
     web_json['artist'] = csv_json['ARTISTA']
     web_json['title'] = csv_json['TÍTULO DA OBRA']
     web_json['year'] = csv_json['ANO']
+    web_json['year_sort'] = int(csv_json['ANO (ordem)'])
     web_json['medium'] = csv_json['TÉCNICA']
     web_json['collection'] = csv_json['ACERVO']
     web_json['artist_death'] = int(csv_json['DATA MORTE ARTISTA']) if csv_json['DATA MORTE ARTISTA'] != '' else 3000
@@ -221,9 +229,56 @@ def update_web_json(obras, json_filename=WEB_DATA_FILE):
             obras_web = json.load(in_json)
 
     obras_web = analyze_images(obras, obras_web)
+    export_faces(obras_web)
 
     with open(json_filename, 'w') as out_json:
         json.dump(obras_web, out_json, ensure_ascii=False)
+
+
+def crop_face(img, face_rect):
+    iwidth, iheight = img.size
+
+    face_left = face_rect['left'] * iwidth
+    face_top = face_rect['top'] * iheight
+    face_width = face_rect['width'] * iwidth
+    face_height = face_rect['height'] * iheight
+
+    face_center_x = face_left + 0.5 * face_width
+    face_center_y = face_top + 0.475 * face_height
+    face_dim = max (face_width, face_height)
+
+    crop_margin = 0.666
+    crop_left = face_center_x - crop_margin * face_dim
+    crop_right = face_center_x + crop_margin * face_dim
+    crop_top = face_center_y - crop_margin * face_dim
+    crop_bottom = face_center_y + crop_margin * face_dim
+
+    return img.crop((crop_left, crop_top, crop_right, crop_bottom))
+
+
+def export_faces(obras_web):
+    pathlib.Path(IMAGES_DIR_FACES).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(WEB_DIR_FACES).mkdir(parents=True, exist_ok=True)
+
+    for o_slug in obras_web:
+        o = obras_web[o_slug]
+
+        o_img_file = join(IMAGES_DIR_RAW, o['img'].replace('_web', '_raw'))
+        o_face_file = join(IMAGES_DIR_FACES, o['img'].replace('_web', '_raw'))
+        o_face_file_web = join(WEB_DIR_FACES, o['img'])
+
+        have_both_faces = isfile(o_face_file) and isfile(o_face_file_web)
+
+        if isfile(o_img_file) and 'face_rectangle' in o and not have_both_faces:
+            img = Image.open(o_img_file).convert('RGB')
+            face = crop_face(img, o['face_rectangle'])
+
+            if not isfile(o_face_file):
+                face.save(o_face_file, quality=90, optimize=True, progressive=True)
+
+            if not isfile(o_face_file_web):
+                face_web = resize_img(o_face_file, 512)
+                face_web.save(o_face_file_web, quality=90, optimize=True, progressive=True)
 
 
 def print_results(faces):
