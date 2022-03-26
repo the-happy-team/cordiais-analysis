@@ -130,9 +130,9 @@ def to_web_json(csv_json):
     web_json['medium'] = csv_json['TÉCNICA']
     web_json['collection'] = csv_json['ACERVO']
     web_json['artist_death'] = int(csv_json['DATA MORTE ARTISTA']) if csv_json['DATA MORTE ARTISTA'] != '' else 3000
-    web_json['marcantonio'] = False if csv_json['PROJETO MARCANTONIO SITE'] == 'FALSE' else True
-    web_json['nudes'] = False if csv_json['NUDES'] == 'FALSE' else True
-    web_json['by_woman'] = False if csv_json['PINTADA POR MULHERES'] == 'FALSE' else True
+    web_json['marcantonio'] = True if csv_json['PROJETO MARCANTONIO SITE'] == 'TRUE' else False
+    web_json['nudes'] = True if csv_json['NUDES'] == 'TRUE' else False
+    web_json['by_woman'] = True if csv_json['PINTADA POR MULHERES'] == 'TRUE' else False
     web_json['by_man'] = False if csv_json['PINTADA POR MULHERES'] == 'TRUE' or csv_json['ARTISTA'] == 'Anônimo' else True
 
     web_json['dimension'] = {
