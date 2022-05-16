@@ -1,6 +1,8 @@
 import csv
+import cv2
 from io import StringIO
 import json
+import numpy as np
 import os
 from os.path import isfile, join
 import pathlib
@@ -229,6 +231,7 @@ def update_web_json(obras, json_filename=WEB_DATA_FILE):
 
     obras_web = analyze_images(obras, obras_web)
     export_faces(obras_web)
+    obras_web = get_dominant_colors(obras_web)
 
     with open(json_filename, 'w') as out_json:
         json.dump(obras_web, out_json, ensure_ascii=False)
@@ -278,6 +281,34 @@ def export_faces(obras_web):
             if not isfile(o_face_file_web):
                 face_web = resize_img(o_face_file, 512)
                 face_web.save(o_face_file_web, quality=90, optimize=True, progressive=True)
+
+
+def get_dominant_colors(obras_web):
+    for o_slug in obras_web:
+        obra = obras_web[o_slug]
+        o_img_file = join(IMAGES_DIR_THUMB, obra['img'].replace('_web', '_thumb'))
+
+        if 'dominant_color' not in obra:
+            dom_color = calculate_dominant_color(o_img_file)
+            obra['dominant_color'] = "#%s" % dom_color
+            print("%s: %s" % (o_slug, obras_web[o_slug]['dominant_color']))
+
+    return obras_web
+
+
+def calculate_dominant_color(img_path):
+    image = cv2.imread(img_path)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+    CV_KMEANS_CRITERIA = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.2)
+    CV_KMEANS_K = 8
+
+    pixel_values = np.float32(image.reshape((-1, 3)))
+    _, labels, centers = cv2.kmeans(pixel_values, CV_KMEANS_K, None, CV_KMEANS_CRITERIA, 10, cv2.KMEANS_RANDOM_CENTERS)
+    centers = np.uint8(centers)
+    _, counts = np.unique(labels, return_counts=True)
+    dominant_rgb = centers[np.argmax(counts)]
+    return ''.join(["%02X" % c for c in dominant_rgb])
 
 
 def print_results(faces):
