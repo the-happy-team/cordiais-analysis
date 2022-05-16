@@ -101,6 +101,7 @@ def get_images(obras):
                 get_image_from_gaac(link_web, img_file_raw)
             elif link_web != '':
                 print('download %s from non google url' % img_slug)
+                # TODO: refactor this into a get_image_from_url()
                 img_data = requests.get(link_web).content
                 with open(img_file_raw, 'wb') as handler:
                     handler.write(img_data)
@@ -138,7 +139,6 @@ def to_web_json(csv_json):
     web_json['dimension'] = {
         'width': float(csv_json['LARGURA cm']) if csv_json['LARGURA cm'] != '' else 0,
         'height': float(csv_json['ALTURA cm']) if csv_json['ALTURA cm'] != '' else 0,
-        'depth': float(csv_json['PROFUNDIDADE cm']) if csv_json['PROFUNDIDADE cm'] != '' else 0,
         'unit': 'cm'
         }
     web_json['slug'] = to_slug(web_json['artist'], web_json['title'])
@@ -151,7 +151,6 @@ def to_web_json(csv_json):
         web_json['dimension'] = {
             'width': image_width,
             'height': image_height,
-            'depth': 0,
             'unit': 'px'
             }
 
@@ -195,8 +194,8 @@ def get_face_attributes(img_file):
 
 def analyze_images(obras_csv, obras_web):
     for o in obras_csv:
-        obra_web_json = to_web_json(o)
-        obra_slug = obra_web_json['slug']
+        obra_csv_json = to_web_json(o)
+        obra_slug = obra_csv_json['slug']
 
         if obra_slug not in obras_web:
             print('processing: %s' % obra_slug)
@@ -204,16 +203,16 @@ def analyze_images(obras_csv, obras_web):
             face = get_face_attributes(obra_filename)
 
             if 'face_token' in face:
-                obra_web_json['gender'] = face['attributes']['gender']['value']
-                obra_web_json['age'] = face['attributes']['age']['value']
-                obra_web_json['ethnicity'] = face['attributes']['ethnicity']['value']
-                obra_web_json['face_rectangle'] = face['face_rectangle']
-                obra_web_json['emotions'] = face['attributes']['emotion']
+                obra_csv_json['gender'] = face['attributes']['gender']['value']
+                obra_csv_json['age'] = face['attributes']['age']['value']
+                obra_csv_json['ethnicity'] = face['attributes']['ethnicity']['value']
+                obra_csv_json['face_rectangle'] = face['face_rectangle']
+                obra_csv_json['emotions'] = face['attributes']['emotion']
 
-            obras_web[obra_slug] = obra_web_json
+            obras_web[obra_slug] = obra_csv_json
         else:
-            print('updating from CSV: %s' % obra_slug)
-            for k, v in obra_web_json.items():
+            print('updating fields from CSV: %s' % obra_slug)
+            for k, v in obra_csv_json.items():
                 obras_web[obra_slug][k] = v
 
     return obras_web
