@@ -1,3 +1,4 @@
+from colorsys import rgb_to_hsv
 import csv
 import cv2
 from io import StringIO
@@ -289,14 +290,14 @@ def get_dominant_colors(obras_web):
         o_img_file = join(IMAGES_DIR_THUMB, obra['img'].replace('_web', '_thumb'))
 
         if 'dominant_color' not in obra:
-            dom_color = calculate_dominant_color(o_img_file)
+            dom_color = calculate_dominant_color(o_img_file, by_hsv=False)
             obra['dominant_color'] = "#%s" % dom_color
             print("%s: %s" % (o_slug, obras_web[o_slug]['dominant_color']))
 
     return obras_web
 
 
-def calculate_dominant_color(img_path):
+def calculate_dominant_color(img_path, by_hsv=False):
     image = cv2.imread(img_path)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
@@ -308,6 +309,15 @@ def calculate_dominant_color(img_path):
     centers = np.uint8(centers)
     _, counts = np.unique(labels, return_counts=True)
     dominant_rgb = centers[np.argmax(counts)]
+
+    if by_hsv:
+        top3_rgb_idx = (np.argsort(-counts))[:3]
+        top3_rgb = centers[top3_rgb_idx]
+        top3_hsv = [rgb_to_hsv(*(rgb / [255, 255, 255])) for rgb in top3_rgb]
+
+        dominant_v_idx = np.argsort([-hsv[2] for hsv in top3_hsv])[0]
+        dominant_rgb = top3_rgb[dominant_v_idx]
+
     return ''.join(["%02X" % c for c in dominant_rgb])
 
 
