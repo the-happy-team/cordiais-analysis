@@ -102,6 +102,7 @@ def get_images(obras):
             if 'artsandculture.google.com' in link_web:
                 print('get %s from %s' % (img_slug[0:16], link_web))
                 get_image_from_gaac(link_web, img_file_raw)
+            # TODO: check if ends in jpg/jpeg/png etc
             elif link_web != '':
                 print('download %s from non google url' % img_slug)
                 # TODO: refactor this into a get_image_from_url()
@@ -221,23 +222,6 @@ def analyze_images(obras_csv, obras_web):
     return obras_web
 
 
-def update_web_json(obras, json_filename=WEB_DATA_FILE):
-    pathlib.Path(WEB_DIR_DATA).mkdir(parents=True, exist_ok=True)
-
-    obras_web = {}
-
-    if isfile(json_filename):
-        with open(json_filename, 'r') as in_json:
-            obras_web = json.load(in_json)
-
-    obras_web = analyze_images(obras, obras_web)
-    export_faces(obras_web)
-    obras_web = get_dominant_colors(obras_web)
-
-    with open(json_filename, 'w') as out_json:
-        json.dump(obras_web, out_json, ensure_ascii=False)
-
-
 def crop_face(img, face_rect):
     iwidth, iheight = img.size
 
@@ -251,10 +235,12 @@ def crop_face(img, face_rect):
     face_dim = max (face_width, face_height)
 
     crop_margin = 0.666
-    crop_left = face_center_x - crop_margin * face_dim
-    crop_right = face_center_x + crop_margin * face_dim
-    crop_top = face_center_y - crop_margin * face_dim
-    crop_bottom = face_center_y + crop_margin * face_dim
+    face_dim_margin = crop_margin * face_dim
+
+    crop_left = face_center_x - face_dim_margin
+    crop_right = face_center_x + face_dim_margin
+    crop_top = face_center_y - face_dim_margin
+    crop_bottom = face_center_y + face_dim_margin
 
     return img.crop((crop_left, crop_top, crop_right, crop_bottom))
 
@@ -284,19 +270,6 @@ def export_faces(obras_web):
                 face_web.save(o_face_file_web, quality=90, optimize=True, progressive=True)
 
 
-def get_dominant_colors(obras_web):
-    for o_slug in obras_web:
-        obra = obras_web[o_slug]
-        o_img_file = join(IMAGES_DIR_THUMB, obra['img'].replace('_web', '_thumb'))
-
-        if 'dominant_color' not in obra:
-            dom_color = calculate_dominant_color(o_img_file, by_hsv=False)
-            obra['dominant_color'] = "#%s" % dom_color
-            print("%s: %s" % (o_slug, obras_web[o_slug]['dominant_color']))
-
-    return obras_web
-
-
 def calculate_dominant_color(img_path, by_hsv=False):
     image = cv2.imread(img_path)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -310,6 +283,7 @@ def calculate_dominant_color(img_path, by_hsv=False):
     _, counts = np.unique(labels, return_counts=True)
     dominant_rgb = centers[np.argmax(counts)]
 
+    # get brightest of top 3 colors
     if by_hsv:
         top3_rgb_idx = (np.argsort(-counts))[:3]
         top3_rgb = centers[top3_rgb_idx]
@@ -319,6 +293,36 @@ def calculate_dominant_color(img_path, by_hsv=False):
         dominant_rgb = top3_rgb[dominant_v_idx]
 
     return ''.join(["%02X" % c for c in dominant_rgb])
+
+
+def get_dominant_colors(obras_web):
+    for o_slug in obras_web:
+        obra = obras_web[o_slug]
+        o_img_file = join(IMAGES_DIR_THUMB, obra['img'].replace('_web', '_thumb'))
+
+        if 'dominant_color' not in obra:
+            dom_color = calculate_dominant_color(o_img_file, by_hsv=False)
+            obra['dominant_color'] = "#%s" % dom_color
+            print("%s: %s" % (o_slug, obras_web[o_slug]['dominant_color']))
+
+    return obras_web
+
+
+def update_web_json(obras, json_filename=WEB_DATA_FILE):
+    pathlib.Path(WEB_DIR_DATA).mkdir(parents=True, exist_ok=True)
+
+    obras_web = {}
+
+    if isfile(json_filename):
+        with open(json_filename, 'r') as in_json:
+            obras_web = json.load(in_json)
+
+    obras_web = analyze_images(obras, obras_web)
+    export_faces(obras_web)
+    obras_web = get_dominant_colors(obras_web)
+
+    with open(json_filename, 'w') as out_json:
+        json.dump(obras_web, out_json, ensure_ascii=False)
 
 
 def print_results(faces):
