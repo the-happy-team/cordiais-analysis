@@ -1,10 +1,7 @@
-from colorsys import rgb_to_hsv
 import csv
-import cv2
 from io import StringIO
 import json
-import numpy as np
-import os
+from os import environ
 from os.path import isfile, join
 import pathlib
 from subprocess import Popen
@@ -12,7 +9,8 @@ from subprocess import Popen
 from PIL import Image
 import requests
 
-from cordiais_utils import to_slug
+from utils.text import to_slug
+from utils.image import resize_img, crop_face, calculate_dominant_color
 
 IMAGES_DIR = join('.', 'imgs')
 IMAGES_DIR_RAW = join(IMAGES_DIR, '00_raw')
@@ -28,11 +26,12 @@ WEB_DATA_FILE = join(WEB_DIR_DATA, 'obras.json')
 
 MAX_DIM_HD = 2160
 MAX_DIM_WEB = 800
+MAX_DIM_WEB_FACE = 512
 MAX_DIM_THUMB = 320
 
 SHEET_URL = 'https://docs.google.com/spreadsheets/d/%s/gviz/tq?tqx=out:csv&sheet=%s' % (
-    os.environ.get('SHEET_ID'),
-    os.environ.get('SHEET_NAME')
+    environ.get('SHEET_ID'),
+    environ.get('SHEET_NAME')
 )
 
 # https://github.com/lovasoa/dezoomify-rs
@@ -72,17 +71,6 @@ def get_image_from_gaac(link_web, img_file):
         print("%s timedout" % img_file)
 
 
-def resize_img(img_file_in, max_dim):
-    img = Image.open(img_file_in).convert('RGB')
-    img.thumbnail((max_dim, max_dim), Image.ANTIALIAS)
-    return img
-
-# TODO: refactor resize_img to be like this
-def _resize_img(img, max_dim):
-    img.thumbnail((max_dim, max_dim), Image.ANTIALIAS)
-    return img
-
-
 def get_images(obras):
     pathlib.Path(IMAGES_DIR_RAW).mkdir(parents=True, exist_ok=True)
     pathlib.Path(IMAGES_DIR_HD).mkdir(parents=True, exist_ok=True)
@@ -102,10 +90,9 @@ def get_images(obras):
             if 'artsandculture.google.com' in link_web:
                 print('get %s from %s' % (img_slug[0:16], link_web))
                 get_image_from_gaac(link_web, img_file_raw)
-            # TODO: check if ends in jpg/jpeg/png etc
-            elif link_web != '':
+            # elif link_web != '':
+            elif link_web.lower().endswith(('.png', '.jpg', '.jpeg')):
                 print('download %s from non google url' % img_slug)
-                # TODO: refactor this into a get_image_from_url()
                 img_data = requests.get(link_web).content
                 with open(img_file_raw, 'wb') as handler:
                     handler.write(img_data)
@@ -131,7 +118,7 @@ def to_web_json(csv_json):
     web_json['artist'] = csv_json['ARTISTA']
     web_json['title'] = csv_json['TÍTULO DA OBRA']
     web_json['year'] = csv_json['ANO']
-    web_json['year_sort'] = int(csv_json['ANO (ordem)'])
+    web_json['year_sort'] = int(csv_json['ANO (ordem)']) if csv_json['ANO (ordem)'] != '' else 1000
     web_json['medium'] = csv_json['TÉCNICA']
     web_json['collection'] = csv_json['ACERVO']
     web_json['artist_death'] = int(csv_json['DATA MORTE ARTISTA']) if csv_json['DATA MORTE ARTISTA'] != '' else 3000
@@ -150,13 +137,14 @@ def to_web_json(csv_json):
 
     if (web_json['dimension']['width'] == 0 or web_json['dimension']['height'] == 0):
         obra_filename = join(IMAGES_DIR_HD, '%s_%s.jpg' % (web_json['slug'], 'hd'))
-        img = Image.open(obra_filename).convert('RGB')
-        image_width, image_height = img.size
-        web_json['dimension'] = {
-            'width': image_width,
-            'height': image_height,
-            'unit': 'px'
-            }
+        if isfile(obra_filename):
+            img = Image.open(obra_filename).convert('RGB')
+            image_width, image_height = img.size
+            web_json['dimension'] = {
+                'width': image_width,
+                'height': image_height,
+                'unit': 'px'
+                }
 
     return web_json
 
@@ -173,8 +161,8 @@ def get_face_attributes(img_file):
         }
 
         data = {
-            'api_key': os.environ.get('FACEPP_KEY'),
-            'api_secret': os.environ.get('FACEPP_SECRET'),
+            'api_key': environ.get('FACEPP_KEY'),
+            'api_secret': environ.get('FACEPP_SECRET'),
             'return_attributes': 'emotion,gender,age,ethnicity'
         }
 
@@ -222,29 +210,6 @@ def analyze_images(obras_csv, obras_web):
     return obras_web
 
 
-def crop_face(img, face_rect):
-    iwidth, iheight = img.size
-
-    face_left = face_rect['left'] * iwidth
-    face_top = face_rect['top'] * iheight
-    face_width = face_rect['width'] * iwidth
-    face_height = face_rect['height'] * iheight
-
-    face_center_x = face_left + 0.5 * face_width
-    face_center_y = face_top + 0.475 * face_height
-    face_dim = max (face_width, face_height)
-
-    crop_margin = 0.666
-    face_dim_margin = crop_margin * face_dim
-
-    crop_left = face_center_x - face_dim_margin
-    crop_right = face_center_x + face_dim_margin
-    crop_top = face_center_y - face_dim_margin
-    crop_bottom = face_center_y + face_dim_margin
-
-    return img.crop((crop_left, crop_top, crop_right, crop_bottom))
-
-
 def export_faces(obras_web):
     pathlib.Path(IMAGES_DIR_FACES).mkdir(parents=True, exist_ok=True)
     pathlib.Path(WEB_DIR_FACES).mkdir(parents=True, exist_ok=True)
@@ -259,40 +224,15 @@ def export_faces(obras_web):
         have_both_faces = isfile(o_face_file) and isfile(o_face_file_web)
 
         if isfile(o_img_file) and 'face_rectangle' in o and not have_both_faces:
-            img = Image.open(o_img_file).convert('RGB')
-            face = crop_face(img, o['face_rectangle'])
+            face = crop_face(o_img_file, o['face_rectangle'])
 
             if not isfile(o_face_file):
                 face.save(o_face_file, quality=90, optimize=True, progressive=True)
 
             if not isfile(o_face_file_web):
-                face_web = resize_img(o_face_file, 512)
+                print('resize %s face for web' % o_slug)
+                face_web = resize_img(o_face_file, MAX_DIM_WEB_FACE)
                 face_web.save(o_face_file_web, quality=90, optimize=True, progressive=True)
-
-
-def calculate_dominant_color(img_path, by_hsv=False):
-    image = cv2.imread(img_path)
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
-    CV_KMEANS_CRITERIA = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.2)
-    CV_KMEANS_K = 8
-
-    pixel_values = np.float32(image.reshape((-1, 3)))
-    _, labels, centers = cv2.kmeans(pixel_values, CV_KMEANS_K, None, CV_KMEANS_CRITERIA, 10, cv2.KMEANS_RANDOM_CENTERS)
-    centers = np.uint8(centers)
-    _, counts = np.unique(labels, return_counts=True)
-    dominant_rgb = centers[np.argmax(counts)]
-
-    # get brightest of top 3 colors
-    if by_hsv:
-        top3_rgb_idx = (np.argsort(-counts))[:3]
-        top3_rgb = centers[top3_rgb_idx]
-        top3_hsv = [rgb_to_hsv(*(rgb / [255, 255, 255])) for rgb in top3_rgb]
-
-        dominant_v_idx = np.argsort([-hsv[2] for hsv in top3_hsv])[0]
-        dominant_rgb = top3_rgb[dominant_v_idx]
-
-    return ''.join(["%02X" % c for c in dominant_rgb])
 
 
 def get_dominant_colors(obras_web):
@@ -300,7 +240,7 @@ def get_dominant_colors(obras_web):
         obra = obras_web[o_slug]
         o_img_file = join(IMAGES_DIR_THUMB, obra['img'].replace('_web', '_thumb'))
 
-        if 'dominant_color' not in obra:
+        if 'dominant_color' not in obra and isfile(o_img_file):
             dom_color = calculate_dominant_color(o_img_file, by_hsv=False)
             obra['dominant_color'] = "#%s" % dom_color
             print("%s: %s" % (o_slug, obras_web[o_slug]['dominant_color']))
