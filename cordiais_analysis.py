@@ -66,6 +66,7 @@ def get_image_from_gaac(link_web, img_file):
         '--compression=%s' % DEZOOM['COMPRESSION'],
         '--max-height=%s' % DEZOOM['MAX_DIM'],
         '--max-width=%s' % DEZOOM['MAX_DIM'],
+        '--parallelism=4',
         '--',
         '%s' % link_web,
         '%s' % img_file])
@@ -92,7 +93,6 @@ def get_images(obras):
             link_web = o['LINK EXTERNO']
 
             if 'artsandculture.google.com' in link_web:
-                continue
                 print('get %s from %s' % (img_slug[0:16], link_web))
                 get_image_from_gaac(link_web, img_file_raw)
             elif link_web.lower().endswith(('.png', '.jpg', '.jpeg')):
