@@ -34,6 +34,10 @@ SHEET_URL = 'https://docs.google.com/spreadsheets/d/%s/gviz/tq?tqx=out:csv&sheet
     environ.get('SHEET_NAME')
 )
 
+GET_HEADERS = {
+    'user-agent': 'PostmanRuntime/7.29.0'
+}
+
 # https://github.com/lovasoa/dezoomify-rs
 DEZOOM = {
     'CMD': join('.', 'bin', 'dezoomify-rs'),
@@ -88,12 +92,13 @@ def get_images(obras):
             link_web = o['LINK EXTERNO']
 
             if 'artsandculture.google.com' in link_web:
+                continue
                 print('get %s from %s' % (img_slug[0:16], link_web))
                 get_image_from_gaac(link_web, img_file_raw)
-            # elif link_web != '':
             elif link_web.lower().endswith(('.png', '.jpg', '.jpeg')):
                 print('download %s from non google url' % img_slug)
-                img_data = requests.get(link_web).content
+                print(link_web)
+                img_data = requests.get(link_web, headers=GET_HEADERS).content
                 with open(img_file_raw, 'wb') as handler:
                     handler.write(img_data)
 
@@ -115,6 +120,13 @@ def get_images(obras):
 
 def to_web_json(csv_json):
     web_json = {}
+
+    ## only continue if there is an image saved
+    web_json['slug'] = to_slug(csv_json['ARTISTA'], csv_json['TÍTULO DA OBRA'])
+    obra_filename = join(IMAGES_DIR_HD, '%s_%s.jpg' % (web_json['slug'], 'hd'))
+    if not isfile(obra_filename):
+        return {}
+
     web_json['artist'] = csv_json['ARTISTA']
     web_json['title'] = csv_json['TÍTULO DA OBRA']
     web_json['year'] = csv_json['ANO']
@@ -127,24 +139,22 @@ def to_web_json(csv_json):
     web_json['by_woman'] = True if csv_json['PINTADA POR MULHERES'] == 'TRUE' else False
     web_json['by_man'] = False if csv_json['PINTADA POR MULHERES'] == 'TRUE' or csv_json['ARTISTA'] == 'Anônimo' else True
 
+    web_json['img'] = '%s_%s.jpg' % (web_json['slug'], 'web')
+
     web_json['dimension'] = {
         'width': float(csv_json['LARGURA cm']) if csv_json['LARGURA cm'] != '' else 0,
         'height': float(csv_json['ALTURA cm']) if csv_json['ALTURA cm'] != '' else 0,
         'unit': 'cm'
         }
-    web_json['slug'] = to_slug(web_json['artist'], web_json['title'])
-    web_json['img'] = '%s_%s.jpg' % (web_json['slug'], 'web')
 
     if (web_json['dimension']['width'] == 0 or web_json['dimension']['height'] == 0):
-        obra_filename = join(IMAGES_DIR_HD, '%s_%s.jpg' % (web_json['slug'], 'hd'))
-        if isfile(obra_filename):
-            img = Image.open(obra_filename).convert('RGB')
-            image_width, image_height = img.size
-            web_json['dimension'] = {
-                'width': image_width,
-                'height': image_height,
-                'unit': 'px'
-                }
+        img = Image.open(obra_filename).convert('RGB')
+        image_width, image_height = img.size
+        web_json['dimension'] = {
+            'width': image_width,
+            'height': image_height,
+            'unit': 'px'
+            }
 
     return web_json
 
@@ -152,34 +162,33 @@ def to_web_json(csv_json):
 def get_face_attributes(img_file):
     face = {}
 
-    if isfile(img_file):
-        img = Image.open(img_file).convert('RGB')
-        image_width, image_height = img.size
+    img = Image.open(img_file).convert('RGB')
+    image_width, image_height = img.size
 
-        files = {
-            'image_file': open(img_file, 'rb')
-        }
+    files = {
+        'image_file': open(img_file, 'rb')
+    }
 
-        data = {
-            'api_key': environ.get('FACEPP_KEY'),
-            'api_secret': environ.get('FACEPP_SECRET'),
-            'return_attributes': 'emotion,gender,age,ethnicity'
-        }
+    data = {
+        'api_key': environ.get('FACEPP_KEY'),
+        'api_secret': environ.get('FACEPP_SECRET'),
+        'return_attributes': 'emotion,gender,age,ethnicity'
+    }
 
-        res = requests.post(FACE_API_URL, files=files, data=data)
-        res_o = json.loads(res.text)
+    res = requests.post(FACE_API_URL, files=files, data=data)
+    res_o = json.loads(res.text)
 
-        if res.ok:
-            if res_o['face_num'] > 0:
-                face = res_o['faces'][0]
-                face['face_rectangle'] = {
-                    'left': face['face_rectangle']['left'] / image_width,
-                    'top': face['face_rectangle']['top'] / image_height,
-                    'width': face['face_rectangle']['width'] / image_width,
-                    'height': face['face_rectangle']['height'] / image_height
-                }
-        else:
-            print('get_face_attributes ERROR: %s' % json.dumps(res_o, sort_keys=True, indent=2))
+    if res.ok:
+        if res_o['face_num'] > 0:
+            face = res_o['faces'][0]
+            face['face_rectangle'] = {
+                'left': face['face_rectangle']['left'] / image_width,
+                'top': face['face_rectangle']['top'] / image_height,
+                'width': face['face_rectangle']['width'] / image_width,
+                'height': face['face_rectangle']['height'] / image_height
+            }
+    else:
+        print('get_face_attributes ERROR: %s' % json.dumps(res_o, sort_keys=True, indent=2))
 
     return face
 
@@ -187,6 +196,9 @@ def get_face_attributes(img_file):
 def analyze_images(obras_csv, obras_web):
     for o in obras_csv:
         obra_csv_json = to_web_json(o)
+        if not obra_csv_json:
+            continue
+
         obra_slug = obra_csv_json['slug']
 
         if obra_slug not in obras_web:
@@ -223,7 +235,7 @@ def export_faces(obras_web):
 
         have_both_faces = isfile(o_face_file) and isfile(o_face_file_web)
 
-        if isfile(o_img_file) and 'face_rectangle' in o and not have_both_faces:
+        if 'face_rectangle' in o and not have_both_faces:
             face = crop_face(o_img_file, o['face_rectangle'])
 
             if not isfile(o_face_file):
@@ -240,7 +252,7 @@ def get_dominant_colors(obras_web):
         obra = obras_web[o_slug]
         o_img_file = join(IMAGES_DIR_THUMB, obra['img'].replace('_web', '_thumb'))
 
-        if 'dominant_color' not in obra and isfile(o_img_file):
+        if 'dominant_color' not in obra:
             dom_color = calculate_dominant_color(o_img_file, by_hsv=False)
             obra['dominant_color'] = "#%s" % dom_color
             print("%s: %s" % (o_slug, obras_web[o_slug]['dominant_color']))
