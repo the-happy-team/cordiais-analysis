@@ -181,12 +181,15 @@ def get_face_attributes(img_file):
     if res.ok:
         if res_o['face_num'] > 0:
             face = res_o['faces'][0]
+            face['faces'] = res_o['face_num']
             face['face_rectangle'] = {
                 'left': face['face_rectangle']['left'] / image_width,
                 'top': face['face_rectangle']['top'] / image_height,
                 'width': face['face_rectangle']['width'] / image_width,
                 'height': face['face_rectangle']['height'] / image_height
             }
+        else:
+            face['faces'] = 0
     else:
         print('get_face_attributes ERROR: %s' % json.dumps(res_o, sort_keys=True, indent=2))
 
@@ -201,16 +204,19 @@ def analyze_images(obras_csv, obras_web):
 
         obra_slug = obra_csv_json['slug']
 
-        if obra_slug not in obras_web:
+        if obra_slug not in obras_web or 'faces' not in obras_web[obra_slug]:
             print('processing: %s' % obra_slug)
             obra_filename = join(IMAGES_DIR_HD, '%s_%s.jpg' % (obra_slug, 'hd'))
             face = get_face_attributes(obra_filename)
 
-            if 'face_token' in face:
+            if 'faces' in face:
+                obra_csv_json['faces'] = face['faces']
+
+            if 'face_rectangle' in face:
+                obra_csv_json['face_rectangle'] = face['face_rectangle']
                 obra_csv_json['gender'] = face['attributes']['gender']['value']
                 obra_csv_json['age'] = face['attributes']['age']['value']
                 obra_csv_json['ethnicity'] = face['attributes']['ethnicity']['value']
-                obra_csv_json['face_rectangle'] = face['face_rectangle']
                 obra_csv_json['emotions'] = face['attributes']['emotion']
 
             obras_web[obra_slug] = obra_csv_json
