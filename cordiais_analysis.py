@@ -223,7 +223,6 @@ def analyze_images(obras_csv, obras_web):
                 obra_csv_json['face_rectangle'] = face['face_rectangle']
                 obra_csv_json['gender'] = face['attributes']['gender']['value']
                 obra_csv_json['age'] = face['attributes']['age']['value']
-                obra_csv_json['ethnicity'] = face['attributes']['ethnicity']['value']
                 obra_csv_json['emotions'] = face['attributes']['emotion']
 
             obras_web[obra_slug] = obra_csv_json
