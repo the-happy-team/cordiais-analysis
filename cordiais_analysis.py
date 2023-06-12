@@ -46,7 +46,11 @@ DEZOOM = {
 }
 
 FACE_API_URL = 'https://api-us.faceplusplus.com/facepp/v3/detect'
-
+FACE_API_DATA = {
+    'api_key': environ.get('FACEPP_KEY'),
+    'api_secret': environ.get('FACEPP_SECRET'),
+    'return_attributes': 'emotion,gender,age,ethnicity'
+}
 
 def get_obras():
     obras = []
@@ -169,18 +173,21 @@ def get_face_attributes(img_file):
         'image_file': open(img_file, 'rb')
     }
 
-    data = {
-        'api_key': environ.get('FACEPP_KEY'),
-        'api_secret': environ.get('FACEPP_SECRET'),
-        'return_attributes': 'emotion,gender,age,ethnicity'
-    }
-
-    res = requests.post(FACE_API_URL, files=files, data=data)
+    res = requests.post(FACE_API_URL, files=files, data=FACE_API_DATA)
     res_o = json.loads(res.text)
 
     if res.ok:
         if res_o['face_num'] > 0:
-            face = res_o['faces'][0]
+            by_female = sorted(
+                [f for f in res_o['faces'][:5] if f['attributes']['gender']['value'] == 'Female'],
+                key=lambda x: x['face_rectangle']['width'],
+                reverse=True)
+            by_size = sorted(
+                [f for f in res_o['faces'][:5]],
+                key=lambda x: x['face_rectangle']['width'],
+                reverse=True)
+            face = by_female[0] if len(by_female) > 0 else by_size[0]
+
             face['faces'] = res_o['face_num']
             face['face_rectangle'] = {
                 'left': face['face_rectangle']['left'] / image_width,
