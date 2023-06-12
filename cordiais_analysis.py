@@ -49,7 +49,7 @@ FACE_API_URL = 'https://api-us.faceplusplus.com/facepp/v3/detect'
 FACE_API_DATA = {
     'api_key': environ.get('FACEPP_KEY'),
     'api_secret': environ.get('FACEPP_SECRET'),
-    'return_attributes': 'emotion,gender,age,ethnicity'
+    'return_attributes': 'emotion,gender,age,facequality,beauty'
 }
 
 def get_obras():
